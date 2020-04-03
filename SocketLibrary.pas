@@ -16,7 +16,7 @@ type
     Count: Integer;
   end;
 
-  TSocket = class
+  TSocketClient = class
   private
     FConnected: Boolean;
     FIsErrorCaused: Boolean;
@@ -47,9 +47,9 @@ type
 
 implementation
 
-{ TSocket }
+{ TSocketClient }
 
-constructor TSocket.Create();
+constructor TSocketClient.Create();
 var
   wd: WSAData;
 begin
@@ -61,7 +61,7 @@ begin
   ClearError();
 end;
 
-destructor TSocket.Destroy();
+destructor TSocketClient.Destroy();
 begin
   Close();
   Winapi.Winsock2.WSACleanup();
@@ -69,7 +69,7 @@ end;
 
 (* private *)
 
-function TSocket.GetAvailableCount(): Cardinal;
+function TSocketClient.GetAvailableCount(): Cardinal;
 var
   NullPtr: Pointer;
   AvailableCount: Cardinal;
@@ -91,7 +91,7 @@ begin
   Result := AvailableCount;
 end;
 
-function TSocket.GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
+function TSocketClient.GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
 var
   SocketAddress: TSockAddr;
 begin
@@ -114,7 +114,7 @@ begin
   Result := SocketAddress;
 end;
 
-procedure TSocket.Initialize();
+procedure TSocketClient.Initialize();
 begin
   FSocketHandle := Winapi.Winsock2.WSASocket(Winapi.Winsock2.AF_INET, Winapi.Winsock2.SOCK_STREAM, Winapi.Winsock2.IPPROTO_TCP, nil, 0, Winapi.Winsock2.WSA_FLAG_OVERLAPPED);
 
@@ -122,7 +122,7 @@ begin
     IsError(Winapi.Winsock2.SOCKET_ERROR);
 end;
 
-function TSocket.IsError(const ErrorCode: Integer): Boolean;
+function TSocketClient.IsError(const ErrorCode: Integer): Boolean;
 begin
   Result := False;
 
@@ -334,7 +334,7 @@ end;
 
 (* public *)
 
-procedure TSocket.Connect(const Host: string; const Port: Integer; const TryAllIP: Boolean = True);
+procedure TSocketClient.Connect(const Host: string; const Port: Integer; const TryAllIP: Boolean = True);
 var
   AddressList: TAddressList;
   SocketAddress: TSockAddr;
@@ -367,7 +367,7 @@ begin
     FConnected := True;
 end;
 
-procedure TSocket.ClearError();
+procedure TSocketClient.ClearError();
 begin
   FIsErrorCaused := False;
   FLastErrorCode := 0;
@@ -376,7 +376,7 @@ begin
   Winapi.Winsock2.WSASetLastError(FLastErrorCode);
 end;
 
-procedure TSocket.Close();
+procedure TSocketClient.Close();
 begin
   Winapi.Winsock2.shutdown(FSocketHandle, Winapi.Winsock2.SD_BOTH);
   Winapi.Winsock2.closesocket(FSocketHandle);
@@ -384,7 +384,7 @@ begin
   FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
 end;
 
-function TSocket.GetAddressList(const Host: string): TAddressList;
+function TSocketClient.GetAddressList(const Host: string): TAddressList;
 var
   HostEnt: PHostEnt;
   Address: PInAddr;
@@ -415,7 +415,7 @@ begin
   Result := AddressList;
 end;
 
-function TSocket.Receive(const Length: Integer): TArray<Byte>;
+function TSocketClient.Receive(const Length: Integer): TArray<Byte>;
 var
   Data: TArray<Byte>;
   ResultCode: Integer;
@@ -431,7 +431,7 @@ begin
   Result := Data;
 end;
 
-procedure TSocket.Send(const Data: TArray<Byte>; const Length: Integer);
+procedure TSocketClient.Send(const Data: TArray<Byte>; const Length: Integer);
 var
   ResultCode: Integer;
 begin
