@@ -27,7 +27,7 @@ type
     (* functions *)
     function GetAvailableCount(): Cardinal;
     function GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
-    procedure Initialize();
+    function Initialize(): Boolean;
     function IsError(const ErrorCode: Integer): Boolean;
   public
     constructor Create();
@@ -55,11 +55,10 @@ var
   wd: WSAData;
 begin
   Winapi.Winsock2.WSAStartup(Winapi.Winsock2.WINSOCK_VERSION, wd);
+  ClearError();
 
   FConnected := False;
   FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
-
-  ClearError();
 end;
 
 destructor TSocketClient.Destroy();
@@ -115,12 +114,13 @@ begin
   Result := SocketAddress;
 end;
 
-procedure TSocketClient.Initialize();
+function TSocketClient.Initialize(): Boolean;
 begin
+  Result := True;
   FSocketHandle := Winapi.Winsock2.WSASocket(Winapi.Winsock2.AF_INET, Winapi.Winsock2.SOCK_STREAM, Winapi.Winsock2.IPPROTO_TCP, nil, 0, Winapi.Winsock2.WSA_FLAG_OVERLAPPED);
 
   if FSocketHandle = Winapi.Winsock2.INVALID_SOCKET then
-    IsError(Winapi.Winsock2.SOCKET_ERROR);
+    Result := not IsError(Winapi.Winsock2.SOCKET_ERROR);
 end;
 
 function TSocketClient.IsError(const ErrorCode: Integer): Boolean;
@@ -249,8 +249,8 @@ begin
   if (Host.IsEmpty) or (Port < 0) then
     Exit;
 
-  if FSocketHandle = Winapi.Winsock2.INVALID_SOCKET then
-    Initialize();
+  if (FSocketHandle = Winapi.Winsock2.INVALID_SOCKET) and (not Initialize()) then
+    Exit;
 
   ResultCode := -1;
   AddressList := GetAddressList(Host, Port);
