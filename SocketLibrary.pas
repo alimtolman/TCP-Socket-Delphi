@@ -11,6 +11,7 @@ type
   TAddressList = record
   public
     Host: string;
+    Port: Integer;
     Addresses: TArray<Cardinal>;
     IpAddresses: TArray<string>;
     Count: Integer;
@@ -20,8 +21,8 @@ type
   private
     FConnected: Boolean;
     FIsErrorCaused: Boolean;
+    FLastError: string;
     FLastErrorCode: Integer;
-    FLastErrorDescription: string;
     FSocketHandle: TSocketHandle;
     (* functions *)
     function GetAvailableCount(): Cardinal;
@@ -34,7 +35,7 @@ type
     procedure Connect(const Host: string; const Port: Integer; const TryAllIP: Boolean = True);
     procedure ClearError();
     procedure Close();
-    function GetAddressList(const Host: string): TAddressList;
+    function GetAddressList(const Host: string; const Port: Integer): TAddressList;
     function Receive(const Length: Integer): TArray<Byte>;
     procedure Send(const Data: TArray<Byte>; const Length: Integer);
     (* properties *)
@@ -42,7 +43,7 @@ type
     property Connected: Boolean read FConnected;
     property Handle: TSocketHandle read FSocketHandle;
     property IsErrorCaused: Boolean read FIsErrorCaused;
-    property LastErrorDescription: string read FLastErrorDescription;
+    property LastError: string read FLastError;
   end;
 
 implementation
@@ -132,200 +133,104 @@ begin
   FLastErrorCode := Winapi.Winsock2.WSAGetLastError();
 
   case FLastErrorCode of
-    0:
-      Exit;
-    WSA_INVALID_HANDLE:
-      FLastErrorDescription := 'WSA_INVALID_HANDLE';
-    WSA_NOT_ENOUGH_MEMORY:
-      FLastErrorDescription := 'WSA_NOT_ENOUGH_MEMORY';
-    WSA_INVALID_PARAMETER:
-      FLastErrorDescription := 'WSA_INVALID_PARAMETER';
-    WSA_OPERATION_ABORTED:
-      FLastErrorDescription := 'WSA_OPERATION_ABORTED';
-    WSA_IO_INCOMPLETE:
-      FLastErrorDescription := 'WSA_IO_INCOMPLETE';
-    WSA_IO_PENDING:
-      FLastErrorDescription := 'WSA_IO_PENDING';
-    WSAEINTR:
-      FLastErrorDescription := 'WSAEINTR';
-    WSAEBADF:
-      FLastErrorDescription := 'WSAEBADF';
-    WSAEACCES:
-      FLastErrorDescription := 'WSAEACCES';
-    WSAEFAULT:
-      FLastErrorDescription := 'WSAEFAULT';
-    WSAEINVAL:
-      FLastErrorDescription := 'WSAEINVAL';
-    WSAEMFILE:
-      FLastErrorDescription := 'WSAEMFILE';
-    WSAEWOULDBLOCK:
-      FLastErrorDescription := 'WSAEWOULDBLOCK';
-    WSAEINPROGRESS:
-      FLastErrorDescription := 'WSAEINPROGRESS';
-    WSAEALREADY:
-      FLastErrorDescription := 'WSAEALREADY';
-    WSAENOTSOCK:
-      FLastErrorDescription := 'WSAENOTSOCK';
-    WSAEDESTADDRREQ:
-      FLastErrorDescription := 'WSAEDESTADDRREQ';
-    WSAEMSGSIZE:
-      FLastErrorDescription := 'WSAEMSGSIZE';
-    WSAEPROTOTYPE:
-      FLastErrorDescription := 'WSAEPROTOTYPE';
-    WSAENOPROTOOPT:
-      FLastErrorDescription := 'WSAENOPROTOOPT';
-    WSAEPROTONOSUPPORT:
-      FLastErrorDescription := 'WSAEPROTONOSUPPORT';
-    WSAESOCKTNOSUPPORT:
-      FLastErrorDescription := 'WSAESOCKTNOSUPPORT';
-    WSAEOPNOTSUPP:
-      FLastErrorDescription := 'WSAEOPNOTSUPP';
-    WSAEPFNOSUPPORT:
-      FLastErrorDescription := 'WSAEPFNOSUPPORT';
-    WSAEAFNOSUPPORT:
-      FLastErrorDescription := 'WSAEAFNOSUPPORT';
-    WSAEADDRINUSE:
-      FLastErrorDescription := 'WSAEADDRINUSE';
-    WSAEADDRNOTAVAIL:
-      FLastErrorDescription := 'WSAEADDRNOTAVAIL';
-    WSAENETDOWN:
-      FLastErrorDescription := 'WSAENETDOWN';
-    WSAENETUNREACH:
-      FLastErrorDescription := 'WSAENETUNREACH';
-    WSAENETRESET:
-      FLastErrorDescription := 'WSAENETRESET';
-    WSAECONNABORTED:
-      FLastErrorDescription := 'WSAECONNABORTED';
-    WSAECONNRESET:
-      FLastErrorDescription := 'WSAECONNRESET';
-    WSAENOBUFS:
-      FLastErrorDescription := 'WSAENOBUFS';
-    WSAEISCONN:
-      FLastErrorDescription := 'WSAEISCONN';
-    WSAENOTCONN:
-      FLastErrorDescription := 'WSAENOTCONN';
-    WSAESHUTDOWN:
-      FLastErrorDescription := 'WSAESHUTDOWN';
-    WSAETOOMANYREFS:
-      FLastErrorDescription := 'WSAETOOMANYREFS';
-    WSAETIMEDOUT:
-      FLastErrorDescription := 'WSAETIMEDOUT';
-    WSAECONNREFUSED:
-      FLastErrorDescription := 'WSAECONNREFUSED';
-    WSAELOOP:
-      FLastErrorDescription := 'WSAELOOP';
-    WSAENAMETOOLONG:
-      FLastErrorDescription := 'WSAENAMETOOLONG';
-    WSAEHOSTDOWN:
-      FLastErrorDescription := 'WSAEHOSTDOWN';
-    WSAEHOSTUNREACH:
-      FLastErrorDescription := 'WSAEHOSTUNREACH';
-    WSAENOTEMPTY:
-      FLastErrorDescription := 'WSAENOTEMPTY';
-    WSAEPROCLIM:
-      FLastErrorDescription := 'WSAEPROCLIM';
-    WSAEUSERS:
-      FLastErrorDescription := 'WSAEUSERS';
-    WSAEDQUOT:
-      FLastErrorDescription := 'WSAEDQUOT';
-    WSAESTALE:
-      FLastErrorDescription := 'WSAESTALE';
-    WSAEREMOTE:
-      FLastErrorDescription := 'WSAEREMOTE';
-    WSASYSNOTREADY:
-      FLastErrorDescription := 'WSASYSNOTREADY';
-    WSAVERNOTSUPPORTED:
-      FLastErrorDescription := 'WSAVERNOTSUPPORTED';
-    WSANOTINITIALISED:
-      FLastErrorDescription := 'WSANOTINITIALISED';
-    WSAEDISCON:
-      FLastErrorDescription := 'WSAEDISCON';
-    WSAENOMORE:
-      FLastErrorDescription := 'WSAENOMORE';
-    WSAECANCELLED:
-      FLastErrorDescription := 'WSAECANCELLED';
-    WSAEINVALIDPROCTABLE:
-      FLastErrorDescription := 'WSAEINVALIDPROCTABLE';
-    WSAEINVALIDPROVIDER:
-      FLastErrorDescription := 'WSAEINVALIDPROVIDER';
-    WSAEPROVIDERFAILEDINIT:
-      FLastErrorDescription := 'WSAEPROVIDERFAILEDINIT';
-    WSASYSCALLFAILURE:
-      FLastErrorDescription := 'WSASYSCALLFAILURE';
-    WSASERVICE_NOT_FOUND:
-      FLastErrorDescription := 'WSASERVICE_NOT_FOUND';
-    WSATYPE_NOT_FOUND:
-      FLastErrorDescription := 'WSATYPE_NOT_FOUND';
-    WSA_E_NO_MORE:
-      FLastErrorDescription := 'WSA_E_NO_MORE';
-    WSA_E_CANCELLED:
-      FLastErrorDescription := 'WSA_E_CANCELLED';
-    WSAEREFUSED:
-      FLastErrorDescription := 'WSAEREFUSED';
-    WSAHOST_NOT_FOUND:
-      FLastErrorDescription := 'WSAHOST_NOT_FOUND';
-    WSATRY_AGAIN:
-      FLastErrorDescription := 'WSATRY_AGAIN';
-    WSANO_RECOVERY:
-      FLastErrorDescription := 'WSANO_RECOVERY';
-    WSANO_DATA:
-      FLastErrorDescription := 'WSANO_DATA';
-    WSA_QOS_RECEIVERS:
-      FLastErrorDescription := 'WSA_QOS_RECEIVERS';
-    WSA_QOS_SENDERS:
-      FLastErrorDescription := 'WSA_QOS_SENDERS';
-    WSA_QOS_NO_SENDERS:
-      FLastErrorDescription := 'WSA_QOS_NO_SENDERS';
-    WSA_QOS_NO_RECEIVERS:
-      FLastErrorDescription := 'WSA_QOS_NO_RECEIVERS';
-    WSA_QOS_REQUEST_CONFIRMED:
-      FLastErrorDescription := 'WSA_QOS_REQUEST_CONFIRMED';
-    WSA_QOS_ADMISSION_FAILURE:
-      FLastErrorDescription := 'WSA_QOS_ADMISSION_FAILURE';
-    WSA_QOS_POLICY_FAILURE:
-      FLastErrorDescription := 'WSA_QOS_POLICY_FAILURE';
-    WSA_QOS_BAD_STYLE:
-      FLastErrorDescription := 'WSA_QOS_BAD_STYLE';
-    WSA_QOS_BAD_OBJECT:
-      FLastErrorDescription := 'WSA_QOS_BAD_OBJECT';
-    WSA_QOS_TRAFFIC_CTRL_ERROR:
-      FLastErrorDescription := 'WSA_QOS_TRAFFIC_CTRL_ERROR';
-    WSA_QOS_GENERIC_ERROR:
-      FLastErrorDescription := 'WSA_QOS_GENERIC_ERROR';
-    WSA_QOS_ESERVICETYPE:
-      FLastErrorDescription := 'WSA_QOS_ESERVICETYPE';
-    WSA_QOS_EFLOWSPEC:
-      FLastErrorDescription := 'WSA_QOS_EFLOWSPEC';
-    WSA_QOS_EPROVSPECBUF:
-      FLastErrorDescription := 'WSA_QOS_EPROVSPECBUF';
-    WSA_QOS_EFILTERSTYLE:
-      FLastErrorDescription := 'WSA_QOS_EFILTERSTYLE';
-    WSA_QOS_EFILTERTYPE:
-      FLastErrorDescription := 'WSA_QOS_EFILTERTYPE';
-    WSA_QOS_EFILTERCOUNT:
-      FLastErrorDescription := 'WSA_QOS_EFILTERCOUNT';
-    WSA_QOS_EOBJLENGTH:
-      FLastErrorDescription := 'WSA_QOS_EOBJLENGTH';
-    WSA_QOS_EFLOWCOUNT:
-      FLastErrorDescription := 'WSA_QOS_EFLOWCOUNT';
-    WSA_QOS_EUNKOWNPSOBJ:
-      FLastErrorDescription := 'WSA_QOS_EUNKOWNPSOBJ';
-    WSA_QOS_EPOLICYOBJ:
-      FLastErrorDescription := 'WSA_QOS_EPOLICYOBJ';
-    WSA_QOS_EFLOWDESC:
-      FLastErrorDescription := 'WSA_QOS_EFLOWDESC';
-    WSA_QOS_EPSFLOWSPEC:
-      FLastErrorDescription := 'WSA_QOS_EPSFLOWSPEC';
-    WSA_QOS_EPSFILTERSPEC:
-      FLastErrorDescription := 'WSA_QOS_EPSFILTERSPEC';
-    WSA_QOS_ESDMODEOBJ:
-      FLastErrorDescription := 'WSA_QOS_ESDMODEOBJ';
-    WSA_QOS_ESHAPERATEOBJ:
-      FLastErrorDescription := 'WSA_QOS_ESHAPERATEOBJ';
-    WSA_QOS_RESERVED_PETYPE:
-      FLastErrorDescription := 'WSA_QOS_RESERVED_PETYPE';
+    0: Exit;
+    WSA_INVALID_HANDLE: FLastError := 'WSA_INVALID_HANDLE';
+    WSA_NOT_ENOUGH_MEMORY: FLastError := 'WSA_NOT_ENOUGH_MEMORY';
+    WSA_INVALID_PARAMETER: FLastError := 'WSA_INVALID_PARAMETER';
+    WSA_OPERATION_ABORTED: FLastError := 'WSA_OPERATION_ABORTED';
+    WSA_IO_INCOMPLETE: FLastError := 'WSA_IO_INCOMPLETE';
+    WSA_IO_PENDING: FLastError := 'WSA_IO_PENDING';
+    WSAEINTR: FLastError := 'WSAEINTR';
+    WSAEBADF: FLastError := 'WSAEBADF';
+    WSAEACCES: FLastError := 'WSAEACCES';
+    WSAEFAULT: FLastError := 'WSAEFAULT';
+    WSAEINVAL: FLastError := 'WSAEINVAL';
+    WSAEMFILE: FLastError := 'WSAEMFILE';
+    WSAEWOULDBLOCK: FLastError := 'WSAEWOULDBLOCK';
+    WSAEINPROGRESS: FLastError := 'WSAEINPROGRESS';
+    WSAEALREADY: FLastError := 'WSAEALREADY';
+    WSAENOTSOCK: FLastError := 'WSAENOTSOCK';
+    WSAEDESTADDRREQ: FLastError := 'WSAEDESTADDRREQ';
+    WSAEMSGSIZE: FLastError := 'WSAEMSGSIZE';
+    WSAEPROTOTYPE: FLastError := 'WSAEPROTOTYPE';
+    WSAENOPROTOOPT: FLastError := 'WSAENOPROTOOPT';
+    WSAEPROTONOSUPPORT: FLastError := 'WSAEPROTONOSUPPORT';
+    WSAESOCKTNOSUPPORT: FLastError := 'WSAESOCKTNOSUPPORT';
+    WSAEOPNOTSUPP: FLastError := 'WSAEOPNOTSUPP';
+    WSAEPFNOSUPPORT: FLastError := 'WSAEPFNOSUPPORT';
+    WSAEAFNOSUPPORT: FLastError := 'WSAEAFNOSUPPORT';
+    WSAEADDRINUSE: FLastError := 'WSAEADDRINUSE';
+    WSAEADDRNOTAVAIL: FLastError := 'WSAEADDRNOTAVAIL';
+    WSAENETDOWN: FLastError := 'WSAENETDOWN';
+    WSAENETUNREACH: FLastError := 'WSAENETUNREACH';
+    WSAENETRESET: FLastError := 'WSAENETRESET';
+    WSAECONNABORTED: FLastError := 'WSAECONNABORTED';
+    WSAECONNRESET: FLastError := 'WSAECONNRESET';
+    WSAENOBUFS: FLastError := 'WSAENOBUFS';
+    WSAEISCONN: FLastError := 'WSAEISCONN';
+    WSAENOTCONN: FLastError := 'WSAENOTCONN';
+    WSAESHUTDOWN: FLastError := 'WSAESHUTDOWN';
+    WSAETOOMANYREFS: FLastError := 'WSAETOOMANYREFS';
+    WSAETIMEDOUT: FLastError := 'WSAETIMEDOUT';
+    WSAECONNREFUSED: FLastError := 'WSAECONNREFUSED';
+    WSAELOOP: FLastError := 'WSAELOOP';
+    WSAENAMETOOLONG: FLastError := 'WSAENAMETOOLONG';
+    WSAEHOSTDOWN: FLastError := 'WSAEHOSTDOWN';
+    WSAEHOSTUNREACH: FLastError := 'WSAEHOSTUNREACH';
+    WSAENOTEMPTY: FLastError := 'WSAENOTEMPTY';
+    WSAEPROCLIM: FLastError := 'WSAEPROCLIM';
+    WSAEUSERS: FLastError := 'WSAEUSERS';
+    WSAEDQUOT: FLastError := 'WSAEDQUOT';
+    WSAESTALE: FLastError := 'WSAESTALE';
+    WSAEREMOTE: FLastError := 'WSAEREMOTE';
+    WSASYSNOTREADY: FLastError := 'WSASYSNOTREADY';
+    WSAVERNOTSUPPORTED: FLastError := 'WSAVERNOTSUPPORTED';
+    WSANOTINITIALISED: FLastError := 'WSANOTINITIALISED';
+    WSAEDISCON: FLastError := 'WSAEDISCON';
+    WSAENOMORE: FLastError := 'WSAENOMORE';
+    WSAECANCELLED: FLastError := 'WSAECANCELLED';
+    WSAEINVALIDPROCTABLE: FLastError := 'WSAEINVALIDPROCTABLE';
+    WSAEINVALIDPROVIDER: FLastError := 'WSAEINVALIDPROVIDER';
+    WSAEPROVIDERFAILEDINIT: FLastError := 'WSAEPROVIDERFAILEDINIT';
+    WSASYSCALLFAILURE: FLastError := 'WSASYSCALLFAILURE';
+    WSASERVICE_NOT_FOUND: FLastError := 'WSASERVICE_NOT_FOUND';
+    WSATYPE_NOT_FOUND: FLastError := 'WSATYPE_NOT_FOUND';
+    WSA_E_NO_MORE: FLastError := 'WSA_E_NO_MORE';
+    WSA_E_CANCELLED: FLastError := 'WSA_E_CANCELLED';
+    WSAEREFUSED: FLastError := 'WSAEREFUSED';
+    WSAHOST_NOT_FOUND: FLastError := 'WSAHOST_NOT_FOUND';
+    WSATRY_AGAIN: FLastError := 'WSATRY_AGAIN';
+    WSANO_RECOVERY: FLastError := 'WSANO_RECOVERY';
+    WSANO_DATA: FLastError := 'WSANO_DATA';
+    WSA_QOS_RECEIVERS: FLastError := 'WSA_QOS_RECEIVERS';
+    WSA_QOS_SENDERS: FLastError := 'WSA_QOS_SENDERS';
+    WSA_QOS_NO_SENDERS: FLastError := 'WSA_QOS_NO_SENDERS';
+    WSA_QOS_NO_RECEIVERS: FLastError := 'WSA_QOS_NO_RECEIVERS';
+    WSA_QOS_REQUEST_CONFIRMED: FLastError := 'WSA_QOS_REQUEST_CONFIRMED';
+    WSA_QOS_ADMISSION_FAILURE: FLastError := 'WSA_QOS_ADMISSION_FAILURE';
+    WSA_QOS_POLICY_FAILURE: FLastError := 'WSA_QOS_POLICY_FAILURE';
+    WSA_QOS_BAD_STYLE: FLastError := 'WSA_QOS_BAD_STYLE';
+    WSA_QOS_BAD_OBJECT: FLastError := 'WSA_QOS_BAD_OBJECT';
+    WSA_QOS_TRAFFIC_CTRL_ERROR: FLastError := 'WSA_QOS_TRAFFIC_CTRL_ERROR';
+    WSA_QOS_GENERIC_ERROR: FLastError := 'WSA_QOS_GENERIC_ERROR';
+    WSA_QOS_ESERVICETYPE: FLastError := 'WSA_QOS_ESERVICETYPE';
+    WSA_QOS_EFLOWSPEC: FLastError := 'WSA_QOS_EFLOWSPEC';
+    WSA_QOS_EPROVSPECBUF: FLastError := 'WSA_QOS_EPROVSPECBUF';
+    WSA_QOS_EFILTERSTYLE: FLastError := 'WSA_QOS_EFILTERSTYLE';
+    WSA_QOS_EFILTERTYPE: FLastError := 'WSA_QOS_EFILTERTYPE';
+    WSA_QOS_EFILTERCOUNT: FLastError := 'WSA_QOS_EFILTERCOUNT';
+    WSA_QOS_EOBJLENGTH: FLastError := 'WSA_QOS_EOBJLENGTH';
+    WSA_QOS_EFLOWCOUNT: FLastError := 'WSA_QOS_EFLOWCOUNT';
+    WSA_QOS_EUNKOWNPSOBJ: FLastError := 'WSA_QOS_EUNKOWNPSOBJ';
+    WSA_QOS_EPOLICYOBJ: FLastError := 'WSA_QOS_EPOLICYOBJ';
+    WSA_QOS_EFLOWDESC: FLastError := 'WSA_QOS_EFLOWDESC';
+    WSA_QOS_EPSFLOWSPEC: FLastError := 'WSA_QOS_EPSFLOWSPEC';
+    WSA_QOS_EPSFILTERSPEC: FLastError := 'WSA_QOS_EPSFILTERSPEC';
+    WSA_QOS_ESDMODEOBJ: FLastError := 'WSA_QOS_ESDMODEOBJ';
+    WSA_QOS_ESHAPERATEOBJ: FLastError := 'WSA_QOS_ESHAPERATEOBJ';
+    WSA_QOS_RESERVED_PETYPE: FLastError := 'WSA_QOS_RESERVED_PETYPE';
     else
-      FLastErrorDescription := 'Socket error (' + IntToStr(FSocketHandle) + ')'
+      FLastError := 'Socket error (' + IntToStr(FSocketHandle) + ')'
   end;
 
   FIsErrorCaused := True;
@@ -341,16 +246,18 @@ var
   ResultCode: Integer;
   i: Integer;
 begin
+  if (Host.IsEmpty) or (Port < 0) then
+    Exit;
+
   if FSocketHandle = Winapi.Winsock2.INVALID_SOCKET then
     Initialize();
 
   ResultCode := -1;
-  AddressList := GetAddressList(Host);
+  AddressList := GetAddressList(Host, Port);
 
   if AddressList.Count = 0 then
   begin
-    FLastErrorDescription := 'Could not find host ' + Host + ':' + IntToStr(Port);
-
+    FLastError := 'Could not find host ' + Host + ':' + IntToStr(Port);
     Exit;
   end;
 
@@ -371,7 +278,7 @@ procedure TSocketClient.ClearError();
 begin
   FIsErrorCaused := False;
   FLastErrorCode := 0;
-  FLastErrorDescription := '';
+  FLastError := '';
 
   Winapi.Winsock2.WSASetLastError(FLastErrorCode);
 end;
@@ -384,7 +291,7 @@ begin
   FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
 end;
 
-function TSocketClient.GetAddressList(const Host: string): TAddressList;
+function TSocketClient.GetAddressList(const Host: string; const Port: Integer): TAddressList;
 var
   HostEnt: PHostEnt;
   Address: PInAddr;
@@ -392,6 +299,7 @@ var
 begin
   HostEnt := Winapi.Winsock2.gethostbyname(PAnsiChar(AnsiString(Host)));
   AddressList.Host := Host;
+  AddressList.Port := Port;
   AddressList.Addresses := [];
   AddressList.IpAddresses := [];
   AddressList.Count := 0;
