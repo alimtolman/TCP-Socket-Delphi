@@ -24,11 +24,13 @@ type
     FLastError: string;
     FLastErrorCode: Integer;
     FSocketHandle: TSocketHandle;
+    FTimeout: Integer;
     (* functions *)
     function GetAvailableCount(): Cardinal;
     function GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
     function Initialize(): Boolean;
     function IsError(const ErrorCode: Integer): Boolean;
+    procedure SetTimeout(const Value: Integer);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -44,6 +46,7 @@ type
     property Handle: TSocketHandle read FSocketHandle;
     property IsErrorCaused: Boolean read FIsErrorCaused;
     property LastError: string read FLastError;
+    property Timeout: Integer read FTimeout write SetTimeout;
   end;
 
 implementation
@@ -55,10 +58,14 @@ var
   wd: WSAData;
 begin
   Winapi.Winsock2.WSAStartup(Winapi.Winsock2.WINSOCK_VERSION, wd);
-  ClearError();
 
   FConnected := False;
   FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
+  FTimeout := 15000;
+
+  ClearError();
+  Initialize();
+  SetTimeout(FTimeout);
 end;
 
 destructor TSocketClient.Destroy();
@@ -235,6 +242,26 @@ begin
 
   FIsErrorCaused := True;
   Result := True;
+end;
+
+procedure TSocketClient.SetTimeout(const Value: Integer);
+var
+  TimeVal: TTimeVal;
+  ResultCode: Integer;
+begin
+  if Value < 0 then
+    Exit;
+
+  TimeVal.tv_sec := Value;
+  TimeVal.tv_usec := (Value mod 1000) * 1000;
+
+  ResultCode := Winapi.Winsock2.setsockopt(FSocketHandle, Winapi.Winsock2.SOL_SOCKET, Winapi.Winsock2.SO_RCVTIMEO, PAnsiChar(@TimeVal), SizeOf(TimeVal));
+
+  IsError(ResultCode);
+
+  ResultCode := Winapi.Winsock2.setsockopt(FSocketHandle, Winapi.Winsock2.SOL_SOCKET, Winapi.Winsock2.SO_SNDTIMEO, PAnsiChar(@TimeVal), SizeOf(TimeVal));
+
+  IsError(ResultCode);
 end;
 
 (* public *)
