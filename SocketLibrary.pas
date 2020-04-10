@@ -27,6 +27,8 @@ type
     FTimeout: Integer;
     (* functions *)
     function GetAvailableCount(): Cardinal;
+    function GetCanRead(): Boolean;
+    function GetCanWrite(): Boolean;
     function GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
     function Initialize(): Boolean;
     function IsError(const ErrorCode: Integer): Boolean;
@@ -42,6 +44,8 @@ type
     procedure Send(const Data: TArray<Byte>; const Length: Integer);
     (* properties *)
     property Available: Cardinal read GetAvailableCount;
+    property CanRead: Boolean read GetCanRead;
+    property CanWrite: Boolean read GetCanWrite;
     property Connected: Boolean read FConnected;
     property Handle: TSocketHandle read FSocketHandle;
     property IsErrorCaused: Boolean read FIsErrorCaused;
@@ -96,6 +100,48 @@ begin
     Exit;
 
   Result := AvailableCount;
+end;
+
+function TSocketClient.GetCanRead(): Boolean;
+var
+  TimeVal: TTimeVal;
+  FdSet: TFdSet;
+  ResultCode: Integer;
+begin
+  Result := False;
+  TimeVal.tv_sec := FTimeout div 1000;
+  TimeVal.tv_usec := (FTimeout mod 1000) * 1000;
+
+  FdSet.fd_count := 1;
+  FdSet.fd_array[0] := FSocketHandle;
+
+  ResultCode := Winapi.Winsock2.select(0, @FdSet, nil, nil, @TimeVal);
+
+  if IsError(ResultCode) then
+    Exit;
+
+  Result := ResultCode > 0;
+end;
+
+function TSocketClient.GetCanWrite(): Boolean;
+var
+  TimeVal: TTimeVal;
+  FdSet: TFdSet;
+  ResultCode: Integer;
+begin
+  Result := False;
+  TimeVal.tv_sec := FTimeout div 1000;
+  TimeVal.tv_usec := (FTimeout mod 1000) * 1000;
+
+  FdSet.fd_count := 1;
+  FdSet.fd_array[0] := FSocketHandle;
+
+  ResultCode := Winapi.Winsock2.select(0, nil, @FdSet, nil, @TimeVal);
+
+  if IsError(ResultCode) then
+    Exit;
+
+  Result := ResultCode > 0;
 end;
 
 function TSocketClient.GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
