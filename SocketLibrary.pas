@@ -319,7 +319,7 @@ var
   ResultCode: Integer;
   i: Integer;
 begin
-  if (Host.IsEmpty) or (Port < 0) then
+  if (FConnected) or (Host.IsEmpty) or (Port < 0) then
     Exit;
 
   if (FSocketHandle = Winapi.Winsock2.INVALID_SOCKET) and (not Initialize()) then
