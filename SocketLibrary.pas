@@ -6,7 +6,7 @@ uses
   SysUtils, Winapi.Winsock2;
 
 type
-  TSocketHandle = Winapi.WinSock2.TSocket;
+  TSocketHandle = Winapi.Winsock2.TSocket;
 
   TAddressList = record
   public
@@ -38,7 +38,7 @@ type
     destructor Destroy(); override;
     procedure Connect(const Host: string; const Port: Integer; const TryAllIP: Boolean = True);
     procedure ClearError();
-    procedure Close();
+    procedure Disconnect();
     function GetAddressList(const Host: string; const Port: Integer): TAddressList;
     function Receive(const Length: Integer): TArray<Byte>;
     procedure Send(const Data: TArray<Byte>; const Length: Integer);
@@ -74,7 +74,7 @@ end;
 
 destructor TSocketClient.Destroy();
 begin
-  Close();
+  Disconnect();
   Winapi.Winsock2.WSACleanup();
 end;
 
@@ -325,7 +325,7 @@ begin
   if (FSocketHandle = Winapi.Winsock2.INVALID_SOCKET) and (not Initialize()) then
     Exit;
 
-  ResultCode := -1;
+  ResultCode := Winapi.Winsock2.SOCKET_ERROR;
   AddressList := GetAddressList(Host, Port);
 
   if AddressList.Count = 0 then
@@ -343,8 +343,7 @@ begin
       Break;
   end;
 
-  if not IsError(ResultCode) then
-    FConnected := True;
+  FConnected := not IsError(ResultCode);
 end;
 
 procedure TSocketClient.ClearError();
@@ -356,11 +355,12 @@ begin
   Winapi.Winsock2.WSASetLastError(FLastErrorCode);
 end;
 
-procedure TSocketClient.Close();
+procedure TSocketClient.Disconnect();
 begin
   Winapi.Winsock2.shutdown(FSocketHandle, Winapi.Winsock2.SD_BOTH);
   Winapi.Winsock2.closesocket(FSocketHandle);
 
+  FConnected := False;
   FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
 end;
 
