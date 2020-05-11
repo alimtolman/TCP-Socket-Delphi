@@ -3,7 +3,7 @@ unit SocketLibrary;
 interface
 
 uses
-  SysUtils, Winapi.Winsock2;
+  System.SysUtils, Winapi.Winsock2;
 
 type
   TSocketHandle = Winapi.Winsock2.TSocket;
@@ -38,7 +38,7 @@ type
     destructor Destroy(); override;
     procedure Connect(const Host: string; const Port: Integer; const TryAllIP: Boolean = True);
     procedure ClearError();
-    procedure Disconnect();
+    procedure Disconnect(const PreventNextConnections: Boolean = False);
     function GetAddressList(const Host: string; const Port: Integer): TAddressList;
     function Receive(const Length: Integer): TArray<Byte>;
     procedure Send(const Data: TArray<Byte>; const Length: Integer);
@@ -319,7 +319,7 @@ var
   ResultCode: Integer;
   i: Integer;
 begin
-  if (FConnected) or (Host.IsEmpty) or (Port < 0) then
+  if (FConnected) or (Host.IsEmpty) or (Port < 0) or (FSocketHandle = 0) then
     Exit;
 
   if (FSocketHandle = Winapi.Winsock2.INVALID_SOCKET) and (not Initialize()) then
@@ -355,13 +355,17 @@ begin
   Winapi.Winsock2.WSASetLastError(FLastErrorCode);
 end;
 
-procedure TSocketClient.Disconnect();
+procedure TSocketClient.Disconnect(const PreventNextConnections: Boolean = False);
 begin
   Winapi.Winsock2.shutdown(FSocketHandle, Winapi.Winsock2.SD_BOTH);
   Winapi.Winsock2.closesocket(FSocketHandle);
 
   FConnected := False;
-  FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
+
+  if PreventNextConnections then
+    FSocketHandle := 0
+  else
+    FSocketHandle := Winapi.Winsock2.INVALID_SOCKET;
 end;
 
 function TSocketClient.GetAddressList(const Host: string; const Port: Integer): TAddressList;
