@@ -26,12 +26,16 @@ type
     FSocketHandle: TSocketHandle;
     FTimeout: Integer;
     (* functions *)
+    procedure Await();
     function GetAvailableCount(): Cardinal;
     function GetCanRead(): Boolean;
     function GetCanWrite(): Boolean;
+    function GetFdSet(): TFdSet;
     function GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
+    function GetTimeVal(): TTimeVal;
     function Initialize(): Boolean;
     function IsError(const ErrorCode: Integer): Boolean;
+    procedure SetBlockingMode(const Blocking: Boolean);
     procedure SetTimeout(const Value: Integer);
   public
     constructor Create();
@@ -80,6 +84,23 @@ end;
 
 (* private *)
 
+procedure TSocketClient.Await();
+var
+  ExceptFdSet: TFdSet;
+  ReadFdSet: TFdSet;
+  WriteFdSet: TFdSet;
+  TimeVal: TTimeVal;
+  ResultCode: Integer;
+begin
+  ExceptFdSet := GetFdSet();
+  ReadFdSet := GetFdSet();
+  WriteFdSet := GetFdSet();
+  TimeVal := GetTimeVal();
+  ResultCode := Winapi.Winsock2.select(0, @ReadFdSet, @WriteFdSet, @ExceptFdSet, @TimeVal);
+
+  IsError(ResultCode);
+end;
+
 function TSocketClient.GetAvailableCount(): Cardinal;
 var
   NullPtr: Pointer;
@@ -105,17 +126,13 @@ end;
 function TSocketClient.GetCanRead(): Boolean;
 var
   TimeVal: TTimeVal;
-  FdSet: TFdSet;
+  ReadFdSet: TFdSet;
   ResultCode: Integer;
 begin
   Result := False;
-  TimeVal.tv_sec := FTimeout div 1000;
-  TimeVal.tv_usec := (FTimeout mod 1000) * 1000;
-
-  FdSet.fd_count := 1;
-  FdSet.fd_array[0] := FSocketHandle;
-
-  ResultCode := Winapi.Winsock2.select(0, @FdSet, nil, nil, @TimeVal);
+  TimeVal := GetTimeVal();
+  ReadFdSet := GetFdSet();
+  ResultCode := Winapi.Winsock2.select(0, @ReadFdSet, nil, nil, @TimeVal);
 
   if IsError(ResultCode) then
     Exit;
@@ -126,22 +143,28 @@ end;
 function TSocketClient.GetCanWrite(): Boolean;
 var
   TimeVal: TTimeVal;
-  FdSet: TFdSet;
+  WriteFdSet: TFdSet;
   ResultCode: Integer;
 begin
   Result := False;
-  TimeVal.tv_sec := FTimeout div 1000;
-  TimeVal.tv_usec := (FTimeout mod 1000) * 1000;
-
-  FdSet.fd_count := 1;
-  FdSet.fd_array[0] := FSocketHandle;
-
-  ResultCode := Winapi.Winsock2.select(0, nil, @FdSet, nil, @TimeVal);
+  TimeVal := GetTimeVal();
+  WriteFdSet := GetFdSet();
+  ResultCode := Winapi.Winsock2.select(0, nil, @WriteFdSet, nil, @TimeVal);
 
   if IsError(ResultCode) then
     Exit;
 
   Result := ResultCode > 0;
+end;
+
+function TSocketClient.GetFdSet(): TFdSet;
+var
+  FdSet: TFdSet;
+begin
+  FdSet.fd_count := 1;
+  FdSet.fd_array[0] := FSocketHandle;
+
+  Result := FdSet;
 end;
 
 function TSocketClient.GetSocketAddress(const Address: Cardinal; const Port: Integer): TSockAddr;
@@ -165,6 +188,16 @@ begin
   SocketAddress.sa_data[13] := AnsiChar(0);
 
   Result := SocketAddress;
+end;
+
+function TSocketClient.GetTimeVal(): TTimeVal;
+var
+  TimeVal: TTimeVal;
+begin
+  TimeVal.tv_sec := FTimeout div 1000;
+  TimeVal.tv_usec := (FTimeout mod 1000) * 1000;
+
+  Result := TimeVal;
 end;
 
 function TSocketClient.Initialize(): Boolean;
@@ -290,24 +323,29 @@ begin
   Result := True;
 end;
 
+procedure TSocketClient.SetBlockingMode(const Blocking: Boolean);
+var
+  Mode: Cardinal;
+begin
+  Mode := Abs(Integer(not Blocking));
+
+  Winapi.Winsock2.ioctlsocket(FSocketHandle, Integer(Winapi.Winsock2.FIONBIO), Mode);
+end;
+
 procedure TSocketClient.SetTimeout(const Value: Integer);
 var
-  TimeVal: TTimeVal;
-  ResultCode: Integer;
+  ResultCode1: Integer;
+  ResultCode2: Integer;
 begin
   if Value < 0 then
     Exit;
 
-  TimeVal.tv_sec := Value;
-  TimeVal.tv_usec := (Value mod 1000) * 1000;
+  FTimeout := Value;
+  ResultCode1 := Winapi.Winsock2.setsockopt(FSocketHandle, Winapi.Winsock2.SOL_SOCKET, Winapi.Winsock2.SO_RCVTIMEO, (@FTimeout), SizeOf(FTimeout));
+  ResultCode2 := Winapi.Winsock2.setsockopt(FSocketHandle, Winapi.Winsock2.SOL_SOCKET, Winapi.Winsock2.SO_SNDTIMEO, (@FTimeout), SizeOf(FTimeout));
 
-  ResultCode := Winapi.Winsock2.setsockopt(FSocketHandle, Winapi.Winsock2.SOL_SOCKET, Winapi.Winsock2.SO_RCVTIMEO, PAnsiChar(@TimeVal), SizeOf(TimeVal));
-
-  IsError(ResultCode);
-
-  ResultCode := Winapi.Winsock2.setsockopt(FSocketHandle, Winapi.Winsock2.SOL_SOCKET, Winapi.Winsock2.SO_SNDTIMEO, PAnsiChar(@TimeVal), SizeOf(TimeVal));
-
-  IsError(ResultCode);
+  IsError(ResultCode1);
+  IsError(ResultCode2);
 end;
 
 (* public *)
@@ -317,13 +355,16 @@ var
   AddressList: TAddressList;
   SocketAddress: TSockAddr;
   ResultCode: Integer;
-  i: Integer;
+  I: Integer;
 begin
   if (FConnected) or (Host.IsEmpty) or (Port < 0) or (FSocketHandle = 0) then
     Exit;
 
   if (FSocketHandle = Winapi.Winsock2.INVALID_SOCKET) and (not Initialize()) then
+  begin
+    FLastError := 'Initialization error';
     Exit;
+  end;
 
   ResultCode := Winapi.Winsock2.SOCKET_ERROR;
   AddressList := GetAddressList(Host, Port);
@@ -334,14 +375,20 @@ begin
     Exit;
   end;
 
-  for i := 0 to AddressList.Count - 1 do
+  SetBlockingMode(False);
+
+  for I := 0 to AddressList.Count - 1 do
   begin
-    SocketAddress := GetSocketAddress(AddressList.Addresses[i], Port);
+    SocketAddress := GetSocketAddress(AddressList.Addresses[I], Port);
     ResultCode := Winapi.Winsock2.WSAConnect(FSocketHandle, SocketAddress, SizeOf(SocketAddress), nil, nil, nil, nil);
+
+    Await();
 
     if (ResultCode = 0) or (not TryAllIP) then
       Break;
   end;
+
+  SetBlockingMode(True);
 
   FConnected := not IsError(ResultCode);
 end;
@@ -405,13 +452,23 @@ var
   Data: TArray<Byte>;
   ResultCode: Integer;
 begin
+  Result := [];
+
+  if not CanRead then
+  begin
+    FLastError := 'Read is not available';
+    Exit;
+  end;
+
   SetLength(Data, Length);
 
-  Result := [];
   ResultCode := Winapi.Winsock2.recv(FSocketHandle, Data[0], Length, 0);
 
   if IsError(ResultCode) then
+  begin
+    FLastError := 'Error receiving data';
     Exit;
+  end;
 
   Result := Data;
 end;
@@ -420,6 +477,12 @@ procedure TSocketClient.Send(const Data: TArray<Byte>; const Length: Integer);
 var
   ResultCode: Integer;
 begin
+  if not CanWrite then
+  begin
+    FLastError := 'Write is not available';
+    Exit;
+  end;
+
   ResultCode := Winapi.Winsock2.send(FSocketHandle, Data[0], Length, 0);
 
   IsError(ResultCode);
